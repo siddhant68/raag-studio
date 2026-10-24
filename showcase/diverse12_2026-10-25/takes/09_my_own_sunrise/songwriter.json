@@ -1,0 +1,11 @@
+{
+  "provider": "claude_cli",
+  "label": "Claude (local CLI)",
+  "sheet": "[Intro]\n\n[Verse 1]\nFour a.m., I'm tracing cracks along the ceiling\nCold tea on the sill, my phone face down and dim\nI rehearse the speech I never get to say out loud\nPull your old sweater on, still doubting where I begin\n\n[Chorus]\nI can be my own sunrise\nWatch me open up the skies\nGold on my shoulders, bare feet on the floor\nI'm done waiting on a light to knock on my door\n\n[Verse 2]\nNow the kettle's singing and I'm humming right along\nCurtains pulled wide, honey sliding off my spoon\nI catch my grin in the window, steady and strong\nDancing through the kitchen, a slow and easy tune\n\n[Bridge]\nHush now, it was me holding the match\nJust me, and the quiet, and my breath\nSoft, soft, I felt it start to catch\nWarm on my skin, no fear left\n\n[Chorus]\nI can be my own sunrise\nWatch me open up the skies\nGold on my shoulders, bare feet on the floor\nI'm done waiting on a light to knock on my door\n\n[Outro]",
+  "required_hook": [
+    "I can be my own sunrise",
+    "Watch me open up the skies"
+  ],
+  "written_at": "2026-10-24T20:13:36+00:00",
+  "provenance_note": "Saved original Claude lyric sheet retained unchanged; no new writing calls were made for the public release."
+}

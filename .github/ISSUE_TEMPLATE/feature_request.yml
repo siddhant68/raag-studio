@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an improvement to the music workflow.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to create or do?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: Explain the user benefit and how you would verify it.
+    validations:
+      required: true

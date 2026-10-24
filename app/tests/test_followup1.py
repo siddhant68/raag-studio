@@ -1,0 +1,350 @@
+"""Follow-up 1 (handoff 2026-10-24): requested-versus-effective arrangement, and rounds that start from the right plan.
+
+Everything runs through the HTTP API with the fake engine (RAAG_ENGINE=fake); nothing is rendered for real.
+"""
+import pytest
+
+from test_m2_support import client_for, wait_job
+
+# These tests pin the classic template compiler's contract (its caption slots, "Auto" = the Basic planner's card,
+# recipe resets). The song pipeline has its own tests in test_song_pipeline.py.
+CLASSIC = {"RAAG_SONG_PIPELINE": "0"}
+from test_bugfix_review1 import create, caption_of
+
+from backend import compiler
+from backend.planner_base import Controls
+from backend.planner_rules import BasicPlanner
+
+BANSURI = "A peaceful bansuri at dawn"
+
+
+def arrangement(report):
+    return report["arrangement"]
+
+
+# --------------------------------------------------------------------------- P1: effective arrangement
+def test_instrumental_with_choir_lead_reports_the_real_lead_and_no_voices(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, voice="instrumental", lead="choir")
+        arr = arrangement(data["compile_report"])
+        assert arr["requested"]["lead"] == "choir"                       # what the user asked for stays inspectable
+        assert arr["effective"]["lead"] != "choir"
+        assert arr["effective"]["voice_mode"] == "instrumental" and arr["effective"]["background"] == "none"
+        adj = [a for a in arr["adjustments"] if a["field"] == "lead"]
+        assert len(adj) == 1 and adj[0]["requested"] == "choir" and adj[0]["effective"] == arr["effective"]["lead"]
+        assert "Instrumental" in adj[0]["reason"]
+        # the stored plan is untouched: history keeps the user's pick
+        stored = c.get(f"/api/songs/{data['song_id']}").json()["plans"][0]["plan"]
+        assert stored["lead"]["instrument"] == "choir"
+        # plan, request and explanation agree: the caption describes the effective lead, not choir
+        caption = caption_of(c, data["song_id"], data["round_id"]).lower()
+        assert "choir" not in caption
+        params = c.get(f"/api/songs/{data['song_id']}").json()["rounds"][0]["request"]["engine_request"]["params"]
+        assert params["instrumental"] is True
+
+
+def test_effective_lead_is_what_the_caption_names(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, voice="instrumental", lead="choir", instruments=["tabla"])
+        eff = arrangement(data["compile_report"])["effective"]
+        caption = caption_of(c, data["song_id"], data["round_id"]).lower()
+        words = {"bansuri": "flute", "tabla": "tabla", "piano": "piano"}
+        assert words.get(eff["lead"], eff["lead"]) in caption
+        assert "tabla" in eff["supports"] and eff["lead"] not in eff["supports"]
+
+
+def test_auto_voice_with_choir_lead_keeps_the_recorded_precedence_and_needs_no_adjustment(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief="instrumental only, no voices", lead="choir")
+        assert data["plan"]["voice_mode"] == "wordless"                  # recorded user decision
+        arr = arrangement(data["compile_report"])
+        assert arr["effective"]["lead"] == "choir" and arr["effective"]["voice_mode"] == "wordless"
+        assert not [a for a in arr["adjustments"] if a["field"] == "lead"]
+
+
+def test_nothing_adjusted_means_requested_equals_effective(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI)
+        arr = arrangement(data["compile_report"])
+        assert arr["adjustments"] == []
+        assert arr["requested"]["lead"] == arr["effective"]["lead"]
+        assert arr["requested"]["supports"] == arr["effective"]["supports"]
+
+
+def test_dropped_supports_are_listed_with_their_reason():
+    plan = BasicPlanner().plan(BANSURI, Controls.model_validate({"voice": "instrumental", "instruments": ["choir", "tabla"]})).plan
+    out = compiler.compile(plan)["compile_report"]["arrangement"]
+    gone = [a for a in out["adjustments"] if a["field"] == "supports"]
+    assert [a["requested"] for a in gone] == ["choir"] and "Instrumental" in gone[0]["reason"]
+    assert "choir" not in out["effective"]["supports"]
+
+
+def test_over_budget_support_drop_is_reported_as_an_adjustment():
+    plan = BasicPlanner().plan(BANSURI, Controls.model_validate({"instruments": ["tabla", "santoor", "tanpura"]})).plan
+    out = compiler.compile(plan, max_chars=420)["compile_report"]
+    left = [a for a in out["arrangement"]["adjustments"] if a["field"] == "supports"]
+    dropped = [d["item"] for d in out["dropped"] if d["kind"] == "support"]
+    assert dropped and sorted(a["requested"] for a in left) == sorted(dropped)
+    assert all(a["reason"] == "it did not fit the prompt length" for a in left)
+
+
+# --------------------------------------------------------------------------- P1: selected take / retry
+def test_another_from_selected_older_take_uses_its_plan_and_lineage(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, lead="bansuri")
+        sid = data["song_id"]
+        t1 = c.get(f"/api/songs/{sid}").json()["takes"][0]
+        c.patch(f"/api/songs/{sid}/controls", json={"lead": "piano"})
+        # exactly the body the browser now sends: kind + from_take, no `takes`
+        r = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another", "from_take": t1["id"]})
+        assert r.status_code == 202, r.text
+        assert r.json()["plan_id"] == data["plan_id"] and r.json()["plan"]["lead"]["instrument"] == "bansuri"
+        wait_job(c, r.json()["job_id"])
+        detail = c.get(f"/api/songs/{sid}").json()
+        rnd = detail["rounds"][-1]
+        assert rnd["parent_take_id"] == t1["id"] and rnd["plan_id"] == data["plan_id"] and rnd["kind"] == "another"
+        caption = rnd["request"]["caption"].lower()
+        assert "flute" in caption and "piano" not in caption
+
+
+def test_another_without_a_selected_take_uses_the_latest_plan(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, lead="bansuri")
+        sid = data["song_id"]
+        c.patch(f"/api/songs/{sid}/controls", json={"lead": "piano"})
+        r = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another"})
+        assert r.status_code == 202 and r.json()["plan"]["lead"]["instrument"] == "piano"
+        wait_job(c, r.json()["job_id"])
+        assert c.get(f"/api/songs/{sid}").json()["rounds"][-1]["parent_take_id"] is None
+
+
+def test_take_count_comes_from_the_base_plan_when_takes_is_omitted(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        body = {"brief": BANSURI, "duration": 10, "takes": 1}
+        data = c.post("/api/songs", json=body).json()
+        wait_job(c, data["job_id"])
+        sid = data["song_id"]
+        t1 = c.get(f"/api/songs/{sid}").json()["takes"][0]
+        r = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another", "from_take": t1["id"]})
+        wait_job(c, r.json()["job_id"])
+        assert len(c.get(f"/api/songs/{sid}").json()["rounds"][-1]["request"]["seeds"]) == 1
+
+
+def test_retry_repeats_the_failed_rounds_own_plan_not_the_newest(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, lead="bansuri")
+        sid = data["song_id"]
+        t1 = c.get(f"/api/songs/{sid}").json()["takes"][0]
+        first = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another", "from_take": t1["id"]}).json()
+        wait_job(c, first["job_id"])
+        c.patch(f"/api/songs/{sid}/controls", json={"lead": "piano"})        # a newer plan now exists
+        r = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another", "from_round": first["round_id"]})
+        assert r.status_code == 202, r.text
+        assert r.json()["plan_id"] == data["plan_id"] and r.json()["plan"]["lead"]["instrument"] == "bansuri"
+        wait_job(c, r.json()["job_id"])
+        rnd = c.get(f"/api/songs/{sid}").json()["rounds"][-1]
+        assert rnd["parent_take_id"] == t1["id"]                              # lineage of the failed round is kept
+
+
+def test_from_round_is_validated(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI)
+        sid = data["song_id"]
+        other = create(c, brief="A quiet piano night")
+        t1 = c.get(f"/api/songs/{sid}").json()["takes"][0]
+        foreign = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another", "from_round": other["round_id"]})
+        assert foreign.status_code == 404 and foreign.json()["error"]["code"] == "round_not_found"
+        both = c.post(f"/api/songs/{sid}/rounds", json={"kind": "another", "from_round": data["round_id"], "from_take": t1["id"]})
+        assert both.status_code == 422 and both.json()["error"]["code"] == "ambiguous_base"
+        wrong = c.post(f"/api/songs/{sid}/rounds", json={"kind": "refine", "chips": ["warmer"], "from_round": data["round_id"]})
+        assert wrong.status_code == 422 and wrong.json()["error"]["code"] == "from_round_needs_another"
+
+
+# --------------------------------------------------------------------------- P2: recipe_id back to Auto
+def test_recipe_reset_recomputes_recipe_fields_and_keeps_your_choices(tmp_path):
+    from test_bugfix_review1 import auto_plan
+    from backend.jobs import RECIPE_FIELDS
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, recipe_id="r2_warm_ensemble", key="G minor", lead="piano")
+        sid = data["song_id"]
+        before = data["plan"]
+        assert before["recipe_id"] == "r2_warm_ensemble" and before["provenance"]["recipe_id"]["source"] == "you"
+        r = c.patch(f"/api/songs/{sid}/controls", json={"recipe_id": None})
+        assert r.status_code == 200, r.text
+        after = r.json()["plan"]
+        auto = auto_plan(BANSURI, key="G minor", lead="piano")
+        assert after["recipe_id"] == auto["recipe_id"] != "r2_warm_ensemble"
+        assert after["provenance"]["recipe_id"]["source"] != "you"
+        # your own choices are exactly as they were, with their provenance
+        assert after["key"] == "G minor" and after["provenance"]["key"]["source"] == "you"
+        assert after["lead"]["instrument"] == "piano" and after["provenance"]["lead"]["source"] == "you"
+        # everything else the recipe supplied is what Auto gives for the controls still set
+        for field in ("supports", "feeling", "pace", "fullness", "arc"):
+            assert after[field] == auto[field], field
+            assert after["provenance"][field]["source"] != "you", field
+        assert set(RECIPE_FIELDS) >= {"supports", "feeling", "pace", "fullness", "arc", "key", "lead"}
+        assert "piano" not in [s["instrument"] for s in after["supports"]]
+        # the stored controls lost recipe_id and nothing else
+        stored = c.get(f"/api/songs/{sid}").json()["plans"][-1]["controls"]
+        assert "recipe_id" not in stored and stored["key"] == "G minor" and stored["lead"] == "piano"
+
+
+def test_recipe_reset_keeps_a_chip_change_made_after_the_recipe(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, recipe_id="r2_warm_ensemble")
+        sid = data["song_id"]
+        t1 = c.get(f"/api/songs/{sid}").json()["takes"][0]
+        slower = c.post(f"/api/songs/{sid}/rounds", json={"kind": "refine", "chips": ["slower"], "from_take": t1["id"], "takes": 1}).json()
+        wait_job(c, slower["job_id"])
+        pace = slower["plan"]["pace"]
+        assert slower["plan"]["provenance"]["pace"]["source"] == "you"
+        r = c.patch(f"/api/songs/{sid}/controls", json={"recipe_id": None})
+        assert r.status_code == 200, r.text
+        assert r.json()["plan"]["pace"] == pace                                 # the chip's slower pace survives
+        assert r.json()["plan"]["provenance"]["pace"]["source"] == "you"
+
+
+def test_plan_endpoint_refuses_null_resets_and_patch_still_resets(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        data = create(c, brief=BANSURI, lead="piano")
+        sid = data["song_id"]
+        for body in ({"controls": {"lead": None}}, {"shape": {"lead": None}}, {"voice": None}, {"recipe_id": None}):
+            r = c.post(f"/api/songs/{sid}/plan", json=body)
+            assert r.status_code == 422 and r.json()["error"]["code"] == "reset_not_supported", (body, r.text)
+            assert "PATCH" in r.json()["error"]["message"]
+        assert len(c.get(f"/api/songs/{sid}").json()["plans"]) == 1             # nothing was stored by the refusals
+        ok = c.post(f"/api/songs/{sid}/plan", json={"controls": {"key": "G minor"}})
+        assert ok.status_code == 200 and ok.json()["plan"]["lead"]["instrument"] == "piano"
+        reset = c.patch(f"/api/songs/{sid}/controls", json={"lead": None})
+        assert reset.status_code == 200 and reset.json()["plan"]["lead"]["instrument"] != "piano"
+
+
+# --------------------------------------------------------------------------- P2: sung choir wording
+def test_sung_choir_lead_names_the_choir_once():
+    ctl = Controls.model_validate({"voice": "sung", "lead": "choir", "lyrics_text": "Dil ki baat\nsuno zara\n"})
+    plan = BasicPlanner().plan("a tender song of waiting at dawn", ctl).plan
+    out = compiler.compile(plan)
+    caption = out["caption"].lower()
+    assert caption.count("choir") == 1, caption                  # was: "choir harmonies ... over choir, felt piano"
+    assert "over choir" not in caption and "over felt piano" in caption
+    assert out["compile_report"]["arrangement"]["effective"]["background"] == "choir"
+
+
+def test_sung_without_a_choir_lead_is_worded_as_before():
+    ctl = Controls.model_validate({"voice": "sung", "background": "choir", "lyrics_text": "Dil ki baat\nsuno zara\n"})
+    plan = BasicPlanner().plan("a tender song of waiting at dawn", ctl).plan
+    caption = compiler.compile(plan)["caption"].lower()
+    assert caption.count("choir") == 1 and "choir harmonies in the chorus over fingerpicked" in caption
+
+
+def test_wordless_without_background_voices_is_an_adjustment():
+    plan = BasicPlanner().plan(BANSURI, Controls.model_validate({"voice": "wordless"})).plan.model_copy(deep=True)
+    plan.voices.background = "none"
+    arr = compiler.compile(plan)["compile_report"]["arrangement"]
+    bg = [a for a in arr["adjustments"] if a["field"] == "voices.background"]
+    assert bg and bg[0]["requested"] == "none" and bg[0]["effective"] == "light" and "wordless" in bg[0]["reason"]
+
+
+# --------------------------------------------------------------------------- planner state shown after it is switched
+def test_planner_block_follows_the_setting_and_the_help_text_is_not_stale(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:                       # no song is created, so no provider is ever called
+        off = c.get("/api/settings").json()["planner"]
+        assert off["write_for_me"]["enabled"] is False and "off" in off["how_to_enable"].lower()
+        r = c.put("/api/settings", json={"planner_provider": "claude_cli", "planner_smart_enabled": True})
+        assert r.status_code == 200
+        on = c.get("/api/settings").json()["planner"]
+        assert on["provider"] == "claude_cli" and on["write_for_me"] == {"enabled": True, "reason": None}
+        assert "smart planner is on" in on["how_to_enable"] and "Smart planners are off" not in on["how_to_enable"]
+        back = c.put("/api/settings", json={"planner_provider": "basic", "planner_smart_enabled": False}).json()["planner"]
+        assert back["write_for_me"]["enabled"] is False and "Smart planners are off" in back["how_to_enable"]
+
+
+# --------------------------------------------------------------------------- "Write for me" is wired to the drafter
+class _StubSmart:
+    """Basic's plan (sung, policy write, no text) with a provider that can write lyrics. No network, no CLI."""
+    name, label, is_llm, can_write_lyrics = "claude_cli", "Claude (local CLI)", True, True
+
+    def __init__(self, error=None, text="Subah ki dhoop mein\nTera naam hai\n"):
+        self.calls, self.error, self.text, self._basic = 0, error, text, BasicPlanner()
+
+    def plan(self, brief, controls=None, context=None):
+        return self._basic.plan(brief, controls, context)
+
+    def patch(self, plan, request_text):
+        return self._basic.patch(plan, request_text)
+
+    def draft_lyrics(self, plan):
+        self.calls += 1
+        if self.error:
+            raise self.error
+        from backend.planner_base import LyricsDraft
+        return LyricsDraft(text=self.text, provider=self.name)
+
+
+SUNG_BRIEF = "a tender Hindi song about waiting at dawn"
+
+
+def test_write_for_me_drafts_once_stores_the_words_and_later_rounds_reuse_them(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        stub = _StubSmart()
+        c.svc.planner = lambda: stub
+        r = c.post("/api/songs", json={"brief": SUNG_BRIEF, "voice": "sung", "duration": 30, "takes": 1})
+        assert r.status_code == 202, r.text
+        data = r.json()
+        wait_job(c, data["job_id"])
+        plan = data["plan"]
+        assert plan["lyrics"]["policy"] == "write" and plan["lyrics"]["text"] == stub.text
+        assert plan["provenance"]["lyrics"]["source"] == "suggested" and "drafted by Claude" in plan["provenance"]["lyrics"]["reason"]
+        assert "lyrics" not in data["card"]["needs_user_input"]
+        assert any("drafted" in n for n in data["card"]["notes"])
+        lyr = data["compile_report"]["lyrics"]
+        assert lyr["mode"] == "draft"
+        sent = c.get(f"/api/songs/{data['song_id']}").json()["rounds"][0]["request"]["engine_request"]["params"]["lyrics"]
+        assert "Tera naam hai" in sent
+        again = c.post(f"/api/songs/{data['song_id']}/rounds", json={"kind": "another"})
+        assert again.status_code == 202
+        wait_job(c, again.json()["job_id"])
+        assert stub.calls == 1                                       # drafted once; the same words are reused
+
+
+def test_a_failed_draft_is_refused_with_the_reason_and_creates_nothing(tmp_path):
+    from backend.planner_base import PlannerTimeout
+    with client_for(tmp_path, **CLASSIC) as c:
+        c.svc.planner = lambda: _StubSmart(error=PlannerTimeout("Claude (local CLI) did not answer within 60 s."))
+        r = c.post("/api/songs", json={"brief": SUNG_BRIEF, "voice": "sung", "duration": 30, "takes": 1})
+        assert r.status_code == 409 and r.json()["error"]["code"] == "planner_timeout"
+        assert "could not write the lyrics" in r.json()["error"]["message"] and "Paste your own words" in r.json()["error"]["message"]
+        assert c.get("/api/songs").json()["songs"] == []
+
+
+def test_basic_planner_still_asks_for_words_and_exact_words_are_never_drafted(tmp_path):
+    with client_for(tmp_path, **CLASSIC) as c:
+        r = c.post("/api/songs", json={"brief": SUNG_BRIEF, "voice": "sung", "duration": 30, "takes": 1})
+        assert r.status_code == 422 and r.json()["error"]["code"] == "needs_user_input"
+        stub = _StubSmart()
+        c.svc.planner = lambda: stub
+        ok = c.post("/api/songs", json={"brief": SUNG_BRIEF, "voice": "sung", "duration": 30, "takes": 1,
+                                        "lyrics": "Mere apne shabd\nsuno zara\n"})
+        assert ok.status_code == 202, ok.text
+        wait_job(c, ok.json()["job_id"])
+        assert stub.calls == 0 and ok.json()["plan"]["lyrics"]["policy"] == "exact"
+        assert ok.json()["plan"]["lyrics"]["text"] == "Mere apne shabd\nsuno zara\n"
+
+
+# --------------------------------------------------------------------------- caption budget keeps the named supports
+def test_yamuna_like_plan_keeps_all_three_supports_when_flavour_and_fullness_go_first():
+    """Seen in the real sample batch: 590 characters against a 510 target dropped tabla, tanpura and santoor, leaving a bare solo."""
+    plan = BasicPlanner().plan(BANSURI, Controls.model_validate({"fullness": "spare", "feeling": ["peaceful", "clear"]})).plan
+    plan = plan.model_copy(update={"flavour": "early morning mist over a quiet river", "duration_s": 60})
+    plan = plan.model_copy(update={"supports": [
+        plan.supports[0].model_copy(update={"instrument": "tabla", "presence": "sparse"}),
+        plan.supports[0].model_copy(update={"instrument": "tanpura", "role": "drone", "presence": "gentle"}),
+        plan.supports[0].model_copy(update={"instrument": "santoor", "role": "texture", "presence": "gentle"})]})
+    out = compiler.compile(plan)
+    report = out["compile_report"]
+    caption = out["caption"].lower()
+    assert len(out["caption"]) <= 512
+    assert all(w in caption for w in ("tabla", "tanpura", "santoor", "flowing tabla pulse")), out["caption"]
+    assert [d["kind"] for d in report["dropped"] if d["reason"] == "over_budget"] == ["flavour", "fullness"]
+    assert report["arrangement"]["adjustments"] == []                       # the arrangement that was asked for is the one sent
+    assert "meend" in caption and "natural breaths" in caption              # the expressive technique terms are intact

@@ -1,0 +1,11 @@
+{
+  "provider": "claude_cli",
+  "label": "Claude (local CLI)",
+  "sheet": "[Intro]\n\n[Verse 1]\nGutters drip along the street\nPuddles shine beneath our feet\nYour collar's wet, your laugh is loud\nThe moon breaks through a broken cloud\n\n[Pre-Chorus]\nThunder fades and I can breathe\nHold me close, don't let it leave\n\n[Chorus]\nAfter the rain, we come alive\nYour hand in mine, electric skies\nPuddles hold the streetlamp's light\nWe're awake inside the night\n\n[Drop]\n\n[Breakdown]\nI counted seconds between the cracks\nNow I'm counting your heartbeat back\nLift your face, let the light pour in\nWe're starting over, let it begin\n\n[Chorus]\nAfter the rain, we come alive\nYour hand in mine, electric skies\nPuddles hold the streetlamp's light\nWe're awake inside the night\n\n[Drop]\n\n[Outro]",
+  "required_hook": [
+    "After the rain, we come alive",
+    "Your hand in mine, electric skies"
+  ],
+  "written_at": "2026-10-24T20:14:10+00:00",
+  "provenance_note": "Saved original Claude lyric sheet retained unchanged; no new writing calls were made for the public release."
+}

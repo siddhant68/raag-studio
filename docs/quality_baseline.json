@@ -1,0 +1,44 @@
+{
+  "source_commit": "611bb52198eb817c1a56b5586ff6acdb65c8c1db",
+  "preserved_files": {
+    "app/backend/compiler.py": "d2087f873d654410005e5b4f6ac8f10cd186c13d00062a345a0c80064fe5cd8c",
+    "app/backend/song_compiler.py": "e4c5dd4a47e1d29292e85f843f95b9dd840ce830650836f42f3da07db592e9d3",
+    "app/backend/plan_schema.py": "531256f43e510d4c3955f6ae8614b7dcfbfca1d6ae1f1d0f4a8049ddd4c7df4a",
+    "app/backend/planner_rules.py": "b9998c3d2379d30ad74e08a1ae8fab58495ecb4e11e539fcd7dff71c9540ed32",
+    "app/backend/song_blueprint.py": "2d51d61e1f80a358b227f1a7d1d2b0f1deaea7be85d3794439133441194c7763",
+    "app/backend/song_plan.py": "0c989e2f7a2b8596e89d7514a25b53d780b30077972cf39df836b7d756c047b6",
+    "app/backend/songwriter.py": "0406e7e393aba2e57f2a3cbaf56a1a9401fcac91c3fbeaf10471c73a05352ebc",
+    "app/backend/lyric_craft.py": "1357d406ccf8d4edd1a5a90e5d5764de6d7e8d03e3de46e530ec4a532fe163a6",
+    "app/backend/genres.py": "80dd1fb8fc0c3960b443dca4d893cb8252f69ad13b2f978d1ccc2cf6f806017b",
+    "app/backend/instruments.py": "8ce3d78557bd512e4634f2e8e11fb90049de13a9409171372d04203ce4bfe86d",
+    "app/backend/queue_worker.py": "d87fdcbcc682f1be1bc1f633cb2860fa1ae74d78f27d732791302e9ad6143188",
+    "app/genres/presets.json": "ac504218504dad7663069cd80ac54c271812a2493cda5278b9ccfda9fc276097",
+    "app/experiments/showcase_diverse12.json": "2490f42c5cfc9d2d59cb128f29fa66519f73097192d099bd7b812312c1bda427"
+  },
+  "musical_requests": {
+    "takes/01_river_waking_up/request.json": "20eb219d5a94c170d9ef54ce12f3710036bd42035437a4991a32f51e7dc60cf5",
+    "takes/02_midnight_cafe/request.json": "b3ba4eca2ee2e91016622fd331f67b9949de66787ffa05e6f01506a74f3e4171",
+    "takes/03_rise_of_the_mountain/request.json": "9112f2fe658a203bce6f1ae0ca9f75cb6a45c8609b86c928b992a2b1788d6fb6",
+    "takes/04_lanterns_in_the_rain/request.json": "64c3bd2191f0157b2b02b82829cee9a88b5b6f34be19c8f27010911935b41616",
+    "takes/05_thodi_der_aur/request.json": "e16393c116bd9a77beb00e5be976efe45322c85ed83dd5420a6af30d172990c7",
+    "takes/06_baat_adhuri/request.json": "86d9bb899de946ee6b03f47d24b99bea78651958b83acf25224f87727aeb6efa",
+    "takes/07_yahin_kahin_duet/request.json": "a0c5a293f79ac33fd1fd5e57e3378e2ccda48fc4eeefb6627f5f438c3f3a9f51",
+    "takes/08_run_toward_the_light/request.json": "206b3234473b120843bcb3736693906b47084de74a54bf1abfd1c53db8995af1",
+    "takes/09_my_own_sunrise/request.json": "d7d6dbf55e60a590e2b1a7d6c81c8847c7d308103c3f420969437e7dd3594a90",
+    "takes/10_aaj_ki_raat/request.json": "8d73718c9dbd25cdc3b67d37fd8bc2081f096f3a34c38f5e9d23e9c7a6f34b1b",
+    "takes/11_after_the_rain/request.json": "ad1e14686eda7ecbf04f31c99ad86d4a7a30a12f4953144dc3c6611a70847dd3",
+    "takes/12_apni_raah_rap/request.json": "f6eb82f4cde2dd13ac7fb251190ae0e4accafed601c0c7f92740910b114cf74f"
+  },
+  "intentional_packaging_changes": [
+    "Version string 0.3.0a1",
+    "Runtime paths honor RAAG_TOOLS_DIR and default to runtime/",
+    "Recipe evidence and one lyric fixture relocated",
+    "Showcase repository links updated",
+    "Personal tooling/research and machine-specific logs excluded"
+  ],
+  "engine_source_revision": "ca1e85fe9430179831e6bc6be790c332190a3866",
+  "core_weight_revision": "19671f406d603126926c1b7e2adc169acbcade22",
+  "engine_harness_function_ast_sha256": "b57debd4f283ff655a724758d4235e658434b57be20d9b99e584f84cdd5adf3f",
+  "upstream_engine_python_files_checked": 597,
+  "upstream_engine_python_mismatches": []
+}

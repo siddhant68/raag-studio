@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible application or generation problem.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "For security issues, use private vulnerability reporting. Remove keys, personal logs and private lyrics from attachments."
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: macOS version, chip, unified memory, Python version and engine profile.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: What did you do, what did you expect, and what happened?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Relevant error, preflight summary, or seed/settings if appropriate. State whether this was real or fake-engine mode.

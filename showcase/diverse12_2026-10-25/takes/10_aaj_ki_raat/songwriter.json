@@ -1,0 +1,11 @@
+{
+  "provider": "claude_cli",
+  "label": "Claude (local CLI)",
+  "sheet": "[Intro]\n\n[Verse 1]\nसैंडल पहनी, लाली लगाई\nसारी सखियाँ साथ में लाई\nढोल ने जब ज़ोर से बजाया\nमैंने सबको पास बुलाया\n\n[Pre-Chorus]\nपैर थिरकें, धड़कन तेज़ हुई\nतुम भी आओ, अब न रुको कहीं\n\n[Chorus]\nआज की रात खुल के जी\nदिल की धुन पे चल पड़ी\nसब मिल बोलो हाँ जी हाँ जी\nआज हमारी है मर्ज़ी\n\n[Drop]\n\n[Verse 2]\nआधी रात का चाँद है आया\nसबने मिल के शोर मचाया\nमैं घूमी तो चुनरी उड़ी\nसखियाँ घेरे में आ जुड़ीं\n\n[Chorus]\nआज की रात खुल के जी\nदिल की धुन पे चल पड़ी\nसब मिल बोलो हाँ जी हाँ जी\nआज हमारी है मर्ज़ी\n\n[Breakdown]\n\n[Chorus]\nआज की रात खुल के जी\nदिल की धुन पे चल पड़ी\nसब मिल बोलो हाँ जी हाँ जी\nआज हमारी है मर्ज़ी\n\n[Outro]",
+  "required_hook": [
+    "आज की रात खुल के जी",
+    "दिल की धुन पे चल पड़ी"
+  ],
+  "written_at": "2026-10-24T20:13:54+00:00",
+  "provenance_note": "Saved original Claude lyric sheet retained unchanged; no new writing calls were made for the public release."
+}

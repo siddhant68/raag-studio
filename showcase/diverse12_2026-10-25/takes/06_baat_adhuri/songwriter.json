@@ -1,0 +1,11 @@
+{
+  "provider": "claude_cli",
+  "label": "Claude (local CLI)",
+  "sheet": "[Intro]\n\n[Chorus]\nबात अधूरी रहने दे\nआँखों को कुछ कहने दे\n\n[Verse 1]\nपलकों में ठहरा जो दरिया, उसको आज बहने दे\nचाय ठंडी हो गई है, आँखों को कुछ कहने दे\n\n[Chorus]\nबात अधूरी रहने दे\nआँखों को कुछ कहने दे\n\n[Interlude]\n\n[Verse 2]\nदहलीज़ पर मैं रुकी हूँ, ये दूरी सहने दे\nसुबह की पहली अज़ान तक, आँखों को कुछ कहने दे\n\n[Chorus]\nबात अधूरी रहने दे\nआँखों को कुछ कहने दे\n\n[Outro]",
+  "required_hook": [
+    "बात अधूरी रहने दे",
+    "आँखों को कुछ कहने दे"
+  ],
+  "written_at": "2026-10-24T20:12:47+00:00",
+  "provenance_note": "Saved original Claude lyric sheet retained unchanged; no new writing calls were made for the public release."
+}

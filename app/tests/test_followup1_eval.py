@@ -62,6 +62,11 @@ def test_live_run_where_every_plan_falls_back_scores_nothing(tmp_path, monkeypat
     from backend.providers.claude_cli import ClaudeCliPlanner
 
     class Dead(ClaudeCliPlanner):
+        def resolved_command(self):
+            # This case simulates an expired login after executable discovery;
+            # no developer-installed Claude binary or real provider is required.
+            return sys.executable
+
         def _transport(self, *a, **k):
             raise PlannerUnavailable("Failed to authenticate: OAuth session expired", code="planner_cli_failed")
     monkeypatch.setattr(registry, "ClaudeCliPlanner", lambda **kw: Dead(**kw))

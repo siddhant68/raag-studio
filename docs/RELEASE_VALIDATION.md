@@ -38,6 +38,10 @@ evidence deliberately.
 The suite reports one upstream Starlette TestClient deprecation warning for HTTPX. It does not affect these
 passing checks; replacing the test client is a future dependency-maintenance task.
 
+Hosted Linux CI exposed a test fixture that assumed the optional Claude executable was installed while
+simulating an authentication failure. The fixture now stubs executable discovery as well as transport, so it
+tests the intended fallback without a CLI installation or provider call. Application/musical code is unchanged.
+
 ## Recorded audio evidence
 
 The previous local fixed-seed batch rendered twelve of twelve takes successfully, one attempt per brief with

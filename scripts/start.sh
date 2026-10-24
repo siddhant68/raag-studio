@@ -19,6 +19,20 @@ if [ -f "$PIDFILE" ]; then
   rm -f "$PIDFILE"                                   # stale
 fi
 
+# Refuse an occupied port before spawning. An unrelated server's /api/settings
+# response must never be mistaken for this checkout starting successfully.
+"$PY" - "$PORT" <<'PY'
+import socket
+import sys
+try:
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.bind(("127.0.0.1", int(sys.argv[1])))
+except OSError:
+    print(f"Port {sys.argv[1]} is already in use. Choose a free RAAG_PORT; no server was started.", file=sys.stderr)
+    raise SystemExit(1)
+PY
+
 cd "$ROOT/app"
 nohup "$PY" -m uvicorn backend.main:create_app --factory --host 127.0.0.1 --port "$PORT" \
   --timeout-graceful-shutdown 5 >> "$ROOT/data/server.log" 2>&1 &
@@ -26,11 +40,11 @@ echo $! > "$PIDFILE"
 
 i=0
 while [ $i -lt 40 ]; do
+  kill -0 "$(cat "$PIDFILE")" 2>/dev/null || { echo "server exited; see data/server.log" >&2; rm -f "$PIDFILE"; exit 1; }
   if curl -sf "http://127.0.0.1:$PORT/api/settings" >/dev/null 2>&1; then
     echo "Raag Studio started (pid $(cat "$PIDFILE")) at http://127.0.0.1:$PORT  (log: data/server.log)"
     exit 0
   fi
-  kill -0 "$(cat "$PIDFILE")" 2>/dev/null || { echo "server exited; see data/server.log" >&2; rm -f "$PIDFILE"; exit 1; }
   i=$((i + 1)); sleep 0.5
 done
 echo "server did not answer within 20 s; see data/server.log" >&2

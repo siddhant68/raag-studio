@@ -23,5 +23,6 @@ expressive without obscuring what the model can actually do.
 Useful areas: installation on additional Macs, accessibility, lyric delivery evaluation, reproducible presets,
 resource handling and independently tested platform support. See the [roadmap](docs/ROADMAP.md).
 
+Please follow the [community conduct policy](CODE_OF_CONDUCT.md).
 By contributing, you agree that your contribution can be distributed under the project's MIT license.
 Be considerate and specific in reviews. Discuss the work; respect the people doing it.

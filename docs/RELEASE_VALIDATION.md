@@ -24,7 +24,8 @@ evidence deliberately.
 | Check | Result |
 | --- | --- |
 | Fresh Python 3.12 app environment | Installed from pinned requirements; dependency check clean |
-| Complete Python/integration suite | **622 passed**, 214.43 s; tests use fake audio, no real render/provider call |
+| Complete Python/integration suite before final startup guard | **622 passed**, 214.43 s; tests use fake audio, no real render/provider call |
+| Final startup + release/installer regression checks | **17 passed**, including refusal of an unrelated HTTP listener on the requested port |
 | Independent Node browser-logic run | **33 passed**, zero failures |
 | Shell scripts / installer syntax | `sh -n` and Python compilation passed |
 | Engine installer plan | Read-only mode tested; existing-runtime refusal tested |
